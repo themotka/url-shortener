@@ -1,34 +1,28 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-	"net/http"
+	"github.com/spf13/viper"
+	"log"
+	"themotka/shortener/internal"
+	"themotka/shortener/internal/api/handlers"
+	"themotka/shortener/internal/api/middleware"
 )
 
 func main() {
-	router := gin.New()
-	router.GET("/", getUrlHandler)
-	router.POST("/", postUrlHandler)
-	err := router.Run(":8080")
+	if err := initConfig(); err != nil {
+		log.Fatalf("init error: %s", err.Error())
+	}
+	table := middleware.NewHashTable()
+	handler := handlers.NewHandler(table)
+	server := new(internal.Server)
+	err := server.Run(viper.GetString("port"), handler.InitRoutes())
 	if err != nil {
-		return
+		log.Fatalf("server running error: %s", err.Error())
 	}
 }
 
-func getUrlHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "GET request received",
-	})
-}
-
-func postUrlHandler(c *gin.Context) {
-	var data map[string]interface{}
-	if err := c.ShouldBindJSON(&data); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "POST request received",
-		"data":    data,
-	})
+func initConfig() error {
+	viper.AddConfigPath("internal/configs")
+	viper.SetConfigName("config")
+	return viper.ReadInConfig()
 }
