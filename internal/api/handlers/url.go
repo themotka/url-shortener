@@ -7,9 +7,12 @@ import (
 )
 
 func (h *Handler) GetUrlHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "GET request received",
-	})
+	strId := c.Param("id")
+	if _, ok := h.hashTable.Table[strId]; ok {
+		c.JSON(http.StatusOK, h.hashTable.Table[strId])
+	} else {
+		c.JSON(http.StatusNoContent, gin.H{"status": "not found"})
+	}
 }
 
 func (h *Handler) PostUrlHandler(c *gin.Context) {
@@ -18,8 +21,6 @@ func (h *Handler) PostUrlHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "POST request received",
-		"data":    input.Data,
-	})
+	shortened := h.hashTable.WriteTo(input.Data)
+	c.JSON(http.StatusOK, shortened)
 }

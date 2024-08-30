@@ -1,32 +1,37 @@
 package middleware
 
-import (
-	"fmt"
-)
-
 type HashTable struct {
-	table       map[string]string
+	Table       map[string]string
 	charSet     []rune
 	tableLength int
+	keyLength   int
 	keys        []string
 }
 
 func NewHashTable() *HashTable {
-	return &HashTable{
-		table:       make(map[string]string),
+	h := &HashTable{Table: make(map[string]string),
 		charSet:     []rune("0123456789abcdefghijklmnopqrstuvwxyz"),
-		tableLength: 1,
+		tableLength: 0,
+		keyLength:   1,
 		keys:        make([]string, 0)}
+	h.generateKeys(1)
+	return h
 }
 
-func (h *HashTable) WriteTo(url string) error {
-
-	h.generateKeys(1)
-	h.generateKeys(2)
-	for _, combination := range h.keys {
-		fmt.Println(combination)
+func (h *HashTable) WriteTo(url string) string {
+	for k, v := range h.Table {
+		if v == url {
+			return k
+		}
 	}
-	return nil
+	h.tableLength++
+	if pow(36, h.keyLength) <= h.tableLength {
+		h.keyLength++
+		h.generateKeys(h.keyLength)
+	}
+	key := h.keys[h.tableLength-1]
+	h.Table[key] = url
+	return key
 }
 
 func (h *HashTable) generateKeys(length int) {
