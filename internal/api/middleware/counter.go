@@ -1,15 +1,22 @@
 package middleware
 
+import (
+	"database/sql"
+	"themotka/shortener/internal/database"
+)
+
 type HashTable struct {
 	Table       map[string]string
+	Repo        *database.Repository
 	charSet     []rune
 	tableLength int
 	keyLength   int
 	keys        []string
 }
 
-func NewHashTable() *HashTable {
+func NewHashTable(db *sql.DB) *HashTable {
 	h := &HashTable{Table: make(map[string]string),
+		Repo:        database.NewRepository(db),
 		charSet:     []rune("0123456789abcdefghijklmnopqrstuvwxyz"),
 		tableLength: 0,
 		keyLength:   1,
@@ -19,18 +26,32 @@ func NewHashTable() *HashTable {
 }
 
 func (h *HashTable) WriteTo(url string) string {
-	for k, v := range h.Table {
-		if v == url {
+	if h.Repo == nil {
+		for k, v := range h.Table {
+			if v == url {
+				return k
+			}
+		}
+	} else {
+		if k, _ := h.Repo.GetKeyByValue(url); k != "" {
 			return k
 		}
 	}
+
 	h.tableLength++
 	if pow(36, h.keyLength) <= h.tableLength {
 		h.keyLength++
 		h.generateKeys(h.keyLength)
 	}
 	key := h.keys[h.tableLength-1]
-	h.Table[key] = url
+	if h.Repo == nil {
+		h.Table[key] = url
+	} else {
+		err := h.Repo.Put(key, url)
+		if err != nil {
+			return err.Error()
+		}
+	}
 	return key
 }
 

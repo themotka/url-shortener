@@ -5,20 +5,22 @@ import (
 	"themotka/shortener/internal/api/middleware"
 )
 
-type Handler struct {
+type Router struct {
 	hashTable *middleware.HashTable
 }
 
-func NewHandler(hashTable *middleware.HashTable) *Handler {
-	return &Handler{hashTable: hashTable}
+func NewRouter(hashTable *middleware.HashTable) *Router {
+	return &Router{hashTable: hashTable}
 }
 
-func (h *Handler) InitRoutes() *gin.Engine {
+func (h *Router) InitRoutes() *gin.Engine {
 	router := gin.New()
 	url := router.Group("/")
-	{
-		url.POST("/post", h.PostUrlHandler)
+	url.POST("/post", h.PostUrlHandler)
+	if h.hashTable.Repo == nil {
 		url.GET("/:id", h.GetUrlHandler)
+	} else {
+		url.GET("/:id", h.GetUrlHandlerDB)
 	}
 	return router
 }
