@@ -2,7 +2,12 @@ package main
 
 import (
 	"flag"
+	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 	"log"
 	"themotka/shortener/internal"
@@ -29,6 +34,23 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://migrations",
+		"postgres",
+		driver,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = m.Up()
+	if err != nil && err != migrate.ErrNoChange {
+		log.Fatal(err)
+	}
+	defer db.Close()
 	table := middleware.NewHashTable(db)
 	router := handlers.NewRouter(table)
 	if !*isFlagged {
