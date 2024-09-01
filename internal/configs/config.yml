@@ -1,1 +1,8 @@
 port: "8080"
+
+dbHost: "localhost"
+dbPort: "5432"
+dbUser: "postgres"
+dbPass: "123"
+dbName: "postgres"
+dbMode: "disable"
