@@ -2,25 +2,21 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
-	"themotka/shortener/internal/api/middleware"
+	"themotka/shortener/internal/url"
 )
 
-type Router struct {
-	hashTable *middleware.HashTable
+type Handler struct {
+	service url.Service
 }
 
-func NewRouter(hashTable *middleware.HashTable) *Router {
-	return &Router{hashTable: hashTable}
+func NewHandler(service *url.Service) *Handler {
+	return &Handler{service: *service}
 }
 
-func (h *Router) InitRoutes() *gin.Engine {
+func (h *Handler) InitRoutes() *gin.Engine {
 	router := gin.New()
-	url := router.Group("/")
-	url.POST("/post", h.PostUrlHandler)
-	if h.hashTable.Repo == nil {
-		url.GET("/:id", h.GetUrlHandler)
-	} else {
-		url.GET("/:id", h.GetUrlHandlerDB)
-	}
+	routerGroup := router.Group("/")
+	routerGroup.POST("/post", h.PostUrlAndGetKey)
+	routerGroup.GET("/:id", h.GetUrlByKey)
 	return router
 }

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
 	"flag"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4"
@@ -12,8 +14,8 @@ import (
 	"log"
 	"themotka/shortener/internal"
 	"themotka/shortener/internal/api/handlers"
-	"themotka/shortener/internal/api/middleware"
-	"themotka/shortener/internal/database"
+	"themotka/shortener/internal/url"
+	postgres2 "themotka/shortener/internal/url/adapters/db/pg"
 )
 
 func main() {
@@ -23,44 +25,50 @@ func main() {
 
 	isFlagged := flag.Bool("d", false, "Work with database")
 	flag.Parse()
-	db, err := database.NewTable(&database.Config{
-		Host: "localhost",
-		Port: "5432",
-		User: "postgres",
-		Pass: "123",
-		Name: "postgres",
-		Mode: "disable",
+	db, err := postgres2.NewTable(&postgres2.Config{
+		Host: viper.GetString("dbHost"),
+		Port: viper.GetString("dbPort"),
+		User: viper.GetString("dbUser"),
+		Pass: viper.GetString("dbPass"),
+		Name: viper.GetString("dbName"),
+		Mode: viper.GetString("dbMode"),
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = makeMigrations(db)
+	defer db.Close()
+
+	storage := url.NewStorage(*isFlagged, db)
+	shortener := url.NewShortener()
+	service := url.NewService(storage, shortener)
+	handler := handlers.NewHandler(&service)
+
+	server := new(internal.Server)
+	err = server.Run(viper.GetString("port"), handler.InitRoutes())
+	if err != nil {
+		log.Fatalf("server running error: %s", err.Error())
+	}
+}
+
+func makeMigrations(db *sql.DB) error {
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
 	m, err := migrate.NewWithDatabaseInstance(
 		"file://migrations",
-		"postgres",
+		viper.GetString("dbName"),
 		driver,
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 	err = m.Up()
-	if err != nil && err != migrate.ErrNoChange {
+	if err != nil && !errors.Is(migrate.ErrNoChange, err) {
 		log.Fatal(err)
 	}
-	defer db.Close()
-	table := middleware.NewHashTable(db)
-	router := handlers.NewRouter(table)
-	if !*isFlagged {
-		table.Repo = nil
-	}
-	server := new(internal.Server)
-	err = server.Run(viper.GetString("port"), router.InitRoutes())
-	if err != nil {
-		log.Fatalf("server running error: %s", err.Error())
-	}
+	return err
 }
 
 func initConfig() error {
