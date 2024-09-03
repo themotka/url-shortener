@@ -22,7 +22,6 @@ func main() {
 	if err := initConfig(); err != nil {
 		log.Fatalf("init error: %s", err.Error())
 	}
-
 	isFlagged := flag.Bool("d", false, "Work with database")
 	flag.Parse()
 	db, err := postgres2.NewTable(&postgres2.Config{
@@ -36,22 +35,30 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = makeMigrations(db)
-	defer db.Close()
-
+	log.Println("init success")
+	makeMigrations(db)
+	log.Println("Migrate success")
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Fatalf("db close error: %s", err.Error())
+		}
+	}(db)
 	storage := url.NewStorage(*isFlagged, db)
+	log.Println("Storage initialised")
 	shortener := url.NewShortener()
 	service := url.NewService(storage, shortener)
 	handler := handlers.NewHandler(&service)
 
 	server := new(internal.Server)
+	log.Println("Server initialised")
 	err = server.Run(viper.GetString("port"), handler.InitRoutes())
 	if err != nil {
 		log.Fatalf("server running error: %s", err.Error())
 	}
 }
 
-func makeMigrations(db *sql.DB) error {
+func makeMigrations(db *sql.DB) {
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
 		log.Fatal(err)
@@ -62,17 +69,17 @@ func makeMigrations(db *sql.DB) error {
 		driver,
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Migrating error: %s", err)
 	}
 	err = m.Up()
 	if err != nil && !errors.Is(migrate.ErrNoChange, err) {
-		log.Fatal(err)
+		log.Fatalf("Migrating error: %s", err)
 	}
-	return err
 }
 
 func initConfig() error {
-	viper.AddConfigPath("internal/configs")
+	viper.AddConfigPath("/internal/configs")
 	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
 	return viper.ReadInConfig()
 }

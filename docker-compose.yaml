@@ -1,12 +1,32 @@
 version: '3.8'
 
 services:
+  app:
+    image: prod:local
+    container_name: us-app
+    depends_on:
+      db:
+        condition: "service_healthy"
+    ports:
+      - "8080:8080"
+    networks:
+      - us
   db:
-    image: postgres:15
-    container_name: pg_db
+    image: postgres:15-alpine
+    container_name: us_psql
     environment:
-      POSTGRES_DATABASE: postgres
+      POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123
-    ports:
-      - "5432:5432"
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    networks:
+      - us
+
+networks:
+  us:
