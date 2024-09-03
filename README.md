@@ -1,14 +1,17 @@
 # URL shortener
 ## Руководство по запуску:
-1. docker-compose
+1. docker
   ```
-  docker compose up --detach
+   docker build -t prod:local .
   ```
-2. go
+2. docker-compose
   ```
-   go run cmd/app/main.go -d
+   docker compose up 
   ```
-  -d - необязательный флаг, заставляет микросервис работать через Postgres, без него все сохраняется в map
+ Флаг -d, отвечающий за запись в postgres, устанавливается в Dockerfile
+ ```
+ CMD ["/app", "-d"]
+ ```
 ## Handlers
 1. POST http://localhost:8080/post
    body
